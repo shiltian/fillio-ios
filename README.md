@@ -57,12 +57,7 @@ After adding a record, see a beautiful summary showing:
 
 ## CSV Format
 
-### Export Format
-```csv
-id,date,currentMiles,previousMiles,pricePerGallon,gallons,totalCost,isPartialFillUp,notes,vehicleId
-```
-
-### Import Format (Simple)
+### Export/Import Format
 ```csv
 date,currentMiles,previousMiles,pricePerGallon,gallons,totalCost,isPartialFillUp,notes
 2024-01-15,12500,12200,3.459,10.5,36.32,false,"First fill-up"

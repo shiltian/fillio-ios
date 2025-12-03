@@ -6,15 +6,13 @@ enum CSVService {
     // MARK: - Export
 
     /// Export fueling records to CSV format
-    /// - Parameters:
-    ///   - records: Array of FuelingRecord to export
-    ///   - vehicleId: Optional vehicle ID to include in export
+    /// - Parameter records: Array of FuelingRecord to export
     /// - Returns: CSV formatted string
-    static func exportRecords(_ records: [FuelingRecord], vehicleId: UUID?) -> String {
+    static func exportRecords(_ records: [FuelingRecord]) -> String {
         var csv = FuelingRecord.csvHeader + "\n"
 
         for record in records.sorted(by: { $0.date < $1.date }) {
-            csv += record.toCSVRow(vehicleId: vehicleId) + "\n"
+            csv += record.toCSVRow() + "\n"
         }
 
         return csv
@@ -29,7 +27,7 @@ enum CSVService {
         for vehicle in vehicles {
             for record in vehicle.sortedRecords {
                 let vehicleInfo = "\"\(vehicle.name)\",\"\(vehicle.make ?? "")\",\"\(vehicle.model ?? "")\",\(vehicle.year ?? 0),"
-                csv += vehicleInfo + record.toCSVRow(vehicleId: vehicle.id) + "\n"
+                csv += vehicleInfo + record.toCSVRow() + "\n"
             }
         }
 
@@ -50,8 +48,8 @@ enum CSVService {
         let dataLines = lines.dropFirst().filter { !$0.isEmpty }
 
         for line in dataLines {
-            if let result = FuelingRecord.fromCSVRow(line) {
-                records.append(result.record)
+            if let record = FuelingRecord.fromCSVRow(line) {
+                records.append(record)
             }
         }
 

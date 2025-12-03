@@ -334,7 +334,7 @@ struct ExportCSVView: View {
     }
 
     private func exportData() {
-        let csvContent = CSVService.exportRecords(vehicle.sortedRecords, vehicleId: vehicle.id)
+        let csvContent = CSVService.exportRecords(vehicle.sortedRecords)
 
         let fileName = "\(vehicle.displayName.replacingOccurrences(of: " ", with: "_"))_fuel_records.csv"
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)

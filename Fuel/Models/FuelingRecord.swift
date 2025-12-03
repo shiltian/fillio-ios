@@ -81,39 +81,35 @@ final class FuelingRecord {
 
 // MARK: - CSV Export/Import Support
 extension FuelingRecord {
-    static let csvHeader = "id,date,currentMiles,previousMiles,pricePerGallon,gallons,totalCost,isPartialFillUp,notes,vehicleId"
+    static let csvHeader = "date,currentMiles,previousMiles,pricePerGallon,gallons,totalCost,isPartialFillUp,notes"
 
-    func toCSVRow(vehicleId: UUID?) -> String {
+    func toCSVRow() -> String {
         let dateFormatter = ISO8601DateFormatter()
         let dateString = dateFormatter.string(from: date)
         let notesEscaped = (notes ?? "").replacingOccurrences(of: "\"", with: "\"\"")
-        let vehicleIdString = vehicleId?.uuidString ?? ""
 
-        return "\(id.uuidString),\(dateString),\(currentMiles),\(previousMiles),\(pricePerGallon),\(gallons),\(totalCost),\(isPartialFillUp),\"\(notesEscaped)\",\(vehicleIdString)"
+        return "\(dateString),\(currentMiles),\(previousMiles),\(pricePerGallon),\(gallons),\(totalCost),\(isPartialFillUp),\"\(notesEscaped)\""
     }
 
-    static func fromCSVRow(_ row: String) -> (record: FuelingRecord, vehicleId: UUID?)? {
+    static func fromCSVRow(_ row: String) -> FuelingRecord? {
         let components = parseCSVRow(row)
-        guard components.count >= 9 else { return nil }
+        guard components.count >= 6 else { return nil }
 
         let dateFormatter = ISO8601DateFormatter()
 
-        guard let id = UUID(uuidString: components[0]),
-              let date = dateFormatter.date(from: components[1]),
-              let currentMiles = Double(components[2]),
-              let previousMiles = Double(components[3]),
-              let pricePerGallon = Double(components[4]),
-              let gallons = Double(components[5]),
-              let totalCost = Double(components[6]) else {
+        guard let date = dateFormatter.date(from: components[0]),
+              let currentMiles = Double(components[1]),
+              let previousMiles = Double(components[2]),
+              let pricePerGallon = Double(components[3]),
+              let gallons = Double(components[4]),
+              let totalCost = Double(components[5]) else {
             return nil
         }
 
-        let isPartialFillUp = components[7].lowercased() == "true"
-        let notes = components[8].isEmpty ? nil : components[8]
-        let vehicleId = components.count > 9 ? UUID(uuidString: components[9]) : nil
+        let isPartialFillUp = components.count > 6 ? components[6].lowercased() == "true" : false
+        let notes = components.count > 7 && !components[7].isEmpty ? components[7] : nil
 
-        let record = FuelingRecord(
-            id: id,
+        return FuelingRecord(
             date: date,
             currentMiles: currentMiles,
             previousMiles: previousMiles,
@@ -123,8 +119,6 @@ extension FuelingRecord {
             isPartialFillUp: isPartialFillUp,
             notes: notes
         )
-
-        return (record, vehicleId)
     }
 
     private static func parseCSVRow(_ row: String) -> [String] {
