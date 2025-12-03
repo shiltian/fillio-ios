@@ -6,14 +6,21 @@ struct FuelApp: App {
     @State private var importedFileURL: URL?
     @State private var hasInitializedCache = false
 
+    /// Check if we're running in a test environment
+    private static var isRunningTests: Bool {
+        NSClassFromString("XCTestCase") != nil
+    }
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Vehicle.self,
             FuelingRecord.self,
         ])
+
+        // Use in-memory storage for tests to avoid file system issues
         let modelConfiguration = ModelConfiguration(
             schema: schema,
-            isStoredInMemoryOnly: false
+            isStoredInMemoryOnly: isRunningTests
         )
 
         do {
