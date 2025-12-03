@@ -128,6 +128,140 @@ extension String {
     }
 }
 
+// MARK: - Decimal Input TextField (UIKit-based)
+
+/// A UIKit-based TextField that automatically formats input with a fixed number of decimal places
+/// For example, with 3 decimal places: typing "1" displays "0.001", typing "12" displays "0.012"
+struct DecimalInputField<FocusValue: Hashable>: UIViewRepresentable {
+    let placeholder: String
+    @Binding var text: String
+    let decimalPlaces: Int
+    let focusedField: FocusState<FocusValue?>.Binding
+    let fieldValue: FocusValue
+    let onValueChanged: () -> Void
+
+    init(
+        placeholder: String,
+        text: Binding<String>,
+        decimalPlaces: Int,
+        focusedField: FocusState<FocusValue?>.Binding,
+        equals fieldValue: FocusValue,
+        onValueChanged: @escaping () -> Void
+    ) {
+        self.placeholder = placeholder
+        self._text = text
+        self.decimalPlaces = decimalPlaces
+        self.focusedField = focusedField
+        self.fieldValue = fieldValue
+        self.onValueChanged = onValueChanged
+    }
+
+    func makeUIView(context: Context) -> UITextField {
+        let textField = UITextField()
+        textField.placeholder = placeholder
+        textField.keyboardType = .numberPad
+        textField.textAlignment = .right
+        textField.delegate = context.coordinator
+        textField.font = UIFont(name: "Avenir Next", size: 16)
+        textField.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        textField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+        // Set initial value
+        if let value = Double(text), value > 0 {
+            textField.text = context.coordinator.formatValue(value)
+        }
+
+        return textField
+    }
+
+    func updateUIView(_ textField: UITextField, context: Context) {
+        // Update from external changes (e.g., auto-calculate)
+        let expectedText: String
+        if let value = Double(text), value > 0 {
+            expectedText = context.coordinator.formatValue(value)
+        } else {
+            expectedText = ""
+        }
+
+        // Only update if not currently editing and value differs
+        if !textField.isFirstResponder && textField.text != expectedText {
+            textField.text = expectedText
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, UITextFieldDelegate {
+        var parent: DecimalInputField
+        private var rawDigits: String = ""
+
+        var divisor: Double {
+            pow(10.0, Double(parent.decimalPlaces))
+        }
+
+        init(_ parent: DecimalInputField) {
+            self.parent = parent
+            super.init()
+
+            // Initialize rawDigits from existing value
+            if let value = Double(parent.text), value > 0 {
+                let intValue = Int(round(value * divisor))
+                rawDigits = String(intValue)
+            }
+        }
+
+        func formatValue(_ value: Double) -> String {
+            return String(format: "%.\(parent.decimalPlaces)f", value)
+        }
+
+        func textField(_ textField: UITextField, shouldChangeCharactersIn range: NSRange, replacementString string: String) -> Bool {
+            // Handle backspace
+            if string.isEmpty {
+                if !rawDigits.isEmpty {
+                    rawDigits.removeLast()
+                }
+            } else {
+                // Only allow digits
+                let digits = string.filter { $0.isNumber }
+                rawDigits += digits
+            }
+
+            // Remove leading zeros
+            while rawDigits.count > 1 && rawDigits.first == "0" {
+                rawDigits.removeFirst()
+            }
+
+            // Update display
+            if rawDigits.isEmpty {
+                textField.text = ""
+                parent.text = ""
+            } else if let intValue = Int(rawDigits) {
+                let doubleValue = Double(intValue) / divisor
+                let formatted = formatValue(doubleValue)
+                textField.text = formatted
+                parent.text = formatted
+            }
+
+            parent.onValueChanged()
+
+            // We handle the text change ourselves
+            return false
+        }
+
+        func textFieldDidBeginEditing(_ textField: UITextField) {
+            // Sync rawDigits when starting to edit
+            if let value = Double(parent.text), value > 0 {
+                let intValue = Int(round(value * divisor))
+                rawDigits = String(intValue)
+            } else {
+                rawDigits = ""
+            }
+        }
+    }
+}
+
 // MARK: - Array Extensions
 
 extension Array where Element == FuelingRecord {

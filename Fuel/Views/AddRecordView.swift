@@ -134,30 +134,34 @@ struct AddRecordView: View {
                         Spacer()
                         Text("$")
                             .foregroundColor(.secondary)
-                        TextField("0.000", text: $pricePerGallonString)
-                            .font(.custom("Avenir Next", size: 16))
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 100)
-                            .focused($focusedField, equals: .pricePerGallon)
-                            .onChange(of: pricePerGallonString) { _, _ in
-                                fieldEdited(.pricePerGallon)
-                            }
+                        DecimalInputField(
+                            placeholder: "0.000",
+                            text: $pricePerGallonString,
+                            decimalPlaces: 3,
+                            focusedField: $focusedField,
+                            equals: .pricePerGallon,
+                            onValueChanged: { fieldEdited(.pricePerGallon) }
+                        )
+                        .font(.custom("Avenir Next", size: 16))
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 100)
                     }
 
                     HStack {
                         Text("Gallons")
                             .font(.custom("Avenir Next", size: 16))
                         Spacer()
-                        TextField("0.00", text: $gallonsString)
-                            .font(.custom("Avenir Next", size: 16))
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 100)
-                            .focused($focusedField, equals: .gallons)
-                            .onChange(of: gallonsString) { _, _ in
-                                fieldEdited(.gallons)
-                            }
+                        DecimalInputField(
+                            placeholder: "0.000",
+                            text: $gallonsString,
+                            decimalPlaces: 3,
+                            focusedField: $focusedField,
+                            equals: .gallons,
+                            onValueChanged: { fieldEdited(.gallons) }
+                        )
+                        .font(.custom("Avenir Next", size: 16))
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 100)
                         Text("gal")
                             .foregroundColor(.secondary)
                     }
@@ -168,15 +172,17 @@ struct AddRecordView: View {
                         Spacer()
                         Text("$")
                             .foregroundColor(.secondary)
-                        TextField("0.00", text: $totalCostString)
-                            .font(.custom("Avenir Next", size: 16))
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 100)
-                            .focused($focusedField, equals: .totalCost)
-                            .onChange(of: totalCostString) { _, _ in
-                                fieldEdited(.totalCost)
-                            }
+                        DecimalInputField(
+                            placeholder: "0.00",
+                            text: $totalCostString,
+                            decimalPlaces: 2,
+                            focusedField: $focusedField,
+                            equals: .totalCost,
+                            onValueChanged: { fieldEdited(.totalCost) }
+                        )
+                        .font(.custom("Avenir Next", size: 16))
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 100)
                     }
                 } header: {
                     Text("Fuel Details")
@@ -343,7 +349,7 @@ struct AddRecordView: View {
         case .gallons:
             if let p = price, p > 0, let c = cost, c > 0 {
                 let calculated = c / p
-                gallonsString = String(format: "%.2f", calculated)
+                gallonsString = String(format: "%.3f", calculated)
             }
         case .pricePerGallon:
             if let g = gal, g > 0, let c = cost, c > 0 {
