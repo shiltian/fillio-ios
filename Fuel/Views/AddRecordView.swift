@@ -17,9 +17,6 @@ struct AddRecordView: View {
     @State private var fillUpType: FillUpType = .full
     @State private var notes = ""
 
-    // Track which field to calculate (the one NOT being edited)
-    // We track the two most recently user-edited fields; the third gets calculated
-    @State private var userEditedFields: [EditableField] = []
     @FocusState private var focusedField: EditableField?
     @State private var isCalculating = false  // Prevent recursive calculation
 
@@ -140,7 +137,10 @@ struct AddRecordView: View {
                             .multilineTextAlignment(.trailing)
                             .frame(width: 100)
                             .focused($focusedField, equals: .pricePerGallon)
-                            .onChange(of: pricePerGallonString) { _, _ in fieldEdited(.pricePerGallon) }
+                            .onChange(of: pricePerGallonString) { _, _ in
+                                // Only calculate if user is typing here (not programmatic change)
+                                if focusedField == .pricePerGallon { calculateGallons() }
+                            }
                     }
 
                     HStack {
@@ -153,7 +153,9 @@ struct AddRecordView: View {
                             .multilineTextAlignment(.trailing)
                             .frame(width: 100)
                             .focused($focusedField, equals: .gallons)
-                            .onChange(of: gallonsString) { _, _ in fieldEdited(.gallons) }
+                            .onChange(of: gallonsString) { _, _ in
+                                if focusedField == .gallons { calculatePricePerGallon() }
+                            }
                         Text("gal")
                             .foregroundColor(.secondary)
                     }
@@ -170,7 +172,9 @@ struct AddRecordView: View {
                             .multilineTextAlignment(.trailing)
                             .frame(width: 100)
                             .focused($focusedField, equals: .totalCost)
-                            .onChange(of: totalCostString) { _, _ in fieldEdited(.totalCost) }
+                            .onChange(of: totalCostString) { _, _ in
+                                if focusedField == .totalCost { calculatePricePerGallon() }
+                            }
                     }
                 } header: {
                     Text("Fuel Details")
@@ -274,77 +278,33 @@ struct AddRecordView: View {
         }
     }
 
-    private func fieldEdited(_ field: EditableField) {
-        // Prevent recursive calls when we programmatically set values
+    // Auto-calculation rules:
+    // - Edit Gallons → Calculate Price/Gal (from Total Cost ÷ Gallons)
+    // - Edit Total Cost → Calculate Price/Gal (from Total Cost ÷ Gallons)
+    // - Edit Price/Gal → Calculate Gallons (from Total Cost ÷ Price)
+
+    private func calculatePricePerGallon() {
         guard !isCalculating else { return }
+        guard let gal = gallons, gal > 0,
+              let cost = totalCost, cost > 0 else { return }
 
-        // Track user-edited fields (keep last 2)
-        if userEditedFields.last != field {
-            userEditedFields.append(field)
-            if userEditedFields.count > 2 {
-                userEditedFields.removeFirst()
-            }
-        }
-
-        autoCalculate()
-    }
-
-    private func autoCalculate() {
-        // Need at least one user-edited field to know what to calculate
-        guard !userEditedFields.isEmpty else { return }
-
-        let price = pricePerGallon
-        let gal = gallons
-        let cost = totalCost
-
-        // Determine which field to calculate (the one not recently edited by user)
-        let fieldToCalculate: EditableField
-        if userEditedFields.count >= 2 {
-            // We have 2 user-edited fields, calculate the third
-            let allFields: Set<EditableField> = [.pricePerGallon, .gallons, .totalCost]
-            let editedSet = Set(userEditedFields.suffix(2))
-            if let remaining = allFields.subtracting(editedSet).first {
-                fieldToCalculate = remaining
-            } else {
-                return
-            }
-        } else {
-            // Only 1 field edited - wait for second field or use default logic
-            // Default: if price and gallons exist, calculate cost
-            // if price and cost exist, calculate gallons
-            // if gallons and cost exist, calculate price
-            if let p = price, p > 0, let g = gal, g > 0, (cost == nil || cost == 0) {
-                fieldToCalculate = .totalCost
-            } else if let p = price, p > 0, let c = cost, c > 0, (gal == nil || gal == 0) {
-                fieldToCalculate = .gallons
-            } else if let g = gal, g > 0, let c = cost, c > 0, (price == nil || price == 0) {
-                fieldToCalculate = .pricePerGallon
-            } else {
-                return
-            }
-        }
-
-        // Perform the calculation
         isCalculating = true
         defer { isCalculating = false }
 
-        switch fieldToCalculate {
-        case .totalCost:
-            if let p = price, p > 0, let g = gal, g > 0 {
-                let calculated = p * g
-                totalCostString = String(format: "%.2f", calculated)
-            }
-        case .gallons:
-            if let p = price, p > 0, let c = cost, c > 0 {
-                let calculated = c / p
-                gallonsString = String(format: "%.3f", calculated)
-            }
-        case .pricePerGallon:
-            if let g = gal, g > 0, let c = cost, c > 0 {
-                let calculated = c / g
-                pricePerGallonString = String(format: "%.3f", calculated)
-            }
-        }
+        let calculated = cost / gal
+        pricePerGallonString = String(format: "%.3f", calculated)
+    }
+
+    private func calculateGallons() {
+        guard !isCalculating else { return }
+        guard let price = pricePerGallon, price > 0,
+              let cost = totalCost, cost > 0 else { return }
+
+        isCalculating = true
+        defer { isCalculating = false }
+
+        let calculated = cost / price
+        gallonsString = String(format: "%.3f", calculated)
     }
 
     private func saveRecord() {
