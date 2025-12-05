@@ -11,9 +11,10 @@ struct AddRecordView: View {
     // Form fields
     @State private var date = Date()
     @State private var currentMilesString = ""
-    @State private var pricePerGallonString = ""
-    @State private var gallonsString = ""
-    @State private var totalCostString = ""
+    // Store as integers (cents/mills) for right-to-left entry
+    @State private var pricePerGallonMills: Int = 0   // 3 decimal places
+    @State private var gallonsMills: Int = 0          // 3 decimal places
+    @State private var totalCostCents: Int = 0        // 2 decimal places
     @State private var fillUpType: FillUpType = .full
     @State private var notes = ""
 
@@ -41,39 +42,40 @@ struct AddRecordView: View {
         Double(currentMilesString)
     }
 
-    private var pricePerGallon: Double? {
-        Double(pricePerGallonString)
+    private var pricePerGallon: Double {
+        Double(pricePerGallonMills) / 1000.0
     }
 
-    private var gallons: Double? {
-        Double(gallonsString)
+    private var gallons: Double {
+        Double(gallonsMills) / 1000.0
     }
 
-    private var totalCost: Double? {
-        Double(totalCostString)
+    private var totalCost: Double {
+        Double(totalCostCents) / 100.0
     }
 
     // Validation
     private var isValid: Bool {
         guard let current = currentMiles, current > previousMiles else { return false }
-        guard let price = pricePerGallon, price > 0 else { return false }
-        guard let gal = gallons, gal > 0 else { return false }
-        guard let cost = totalCost, cost > 0 else { return false }
+        guard pricePerGallon > 0 else { return false }
+        guard gallons > 0 else { return false }
+        guard totalCost > 0 else { return false }
         return true
     }
 
     // Calculated preview values
     private var previewMPG: Double? {
-        guard let current = currentMiles, let gal = gallons, gal > 0 else { return nil }
+        guard let current = currentMiles, gallons > 0 else { return nil }
         let miles = current - previousMiles
-        return miles / gal
+        guard miles > 0 else { return nil }
+        return miles / gallons
     }
 
     private var previewCostPerMile: Double? {
-        guard let current = currentMiles, let cost = totalCost else { return nil }
+        guard let current = currentMiles, totalCost > 0 else { return nil }
         let miles = current - previousMiles
         guard miles > 0 else { return nil }
-        return cost / miles
+        return totalCost / miles
     }
 
     var body: some View {
@@ -131,31 +133,30 @@ struct AddRecordView: View {
                         Spacer()
                         Text("$")
                             .foregroundColor(.secondary)
-                        TextField("0.000", text: $pricePerGallonString)
-                            .font(.custom("Avenir Next", size: 16))
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 100)
-                            .focused($focusedField, equals: .pricePerGallon)
-                            .onChange(of: pricePerGallonString) { _, _ in
-                                // Only calculate if user is typing here (not programmatic change)
-                                if focusedField == .pricePerGallon { calculateGallons() }
-                            }
+                        CurrencyInputField(
+                            value: $pricePerGallonMills,
+                            decimalPlaces: 3,
+                            width: 100
+                        )
+                        .focused($focusedField, equals: .pricePerGallon)
+                        .onChange(of: pricePerGallonMills) { _, _ in
+                            if focusedField == .pricePerGallon { calculateGallons() }
+                        }
                     }
 
                     HStack {
                         Text("Gallons")
                             .font(.custom("Avenir Next", size: 16))
                         Spacer()
-                        TextField("0.000", text: $gallonsString)
-                            .font(.custom("Avenir Next", size: 16))
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 100)
-                            .focused($focusedField, equals: .gallons)
-                            .onChange(of: gallonsString) { _, _ in
-                                if focusedField == .gallons { calculatePricePerGallon() }
-                            }
+                        CurrencyInputField(
+                            value: $gallonsMills,
+                            decimalPlaces: 3,
+                            width: 100
+                        )
+                        .focused($focusedField, equals: .gallons)
+                        .onChange(of: gallonsMills) { _, _ in
+                            if focusedField == .gallons { calculatePricePerGallon() }
+                        }
                         Text("gal")
                             .foregroundColor(.secondary)
                     }
@@ -166,15 +167,15 @@ struct AddRecordView: View {
                         Spacer()
                         Text("$")
                             .foregroundColor(.secondary)
-                        TextField("0.00", text: $totalCostString)
-                            .font(.custom("Avenir Next", size: 16))
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 100)
-                            .focused($focusedField, equals: .totalCost)
-                            .onChange(of: totalCostString) { _, _ in
-                                if focusedField == .totalCost { calculatePricePerGallon() }
-                            }
+                        CurrencyInputField(
+                            value: $totalCostCents,
+                            decimalPlaces: 2,
+                            width: 100
+                        )
+                        .focused($focusedField, equals: .totalCost)
+                        .onChange(of: totalCostCents) { _, _ in
+                            if focusedField == .totalCost { calculatePricePerGallon() }
+                        }
                     }
                 } header: {
                     Text("Fuel Details")
@@ -285,33 +286,30 @@ struct AddRecordView: View {
 
     private func calculatePricePerGallon() {
         guard !isCalculating else { return }
-        guard let gal = gallons, gal > 0,
-              let cost = totalCost, cost > 0 else { return }
+        guard gallons > 0, totalCost > 0 else { return }
 
         isCalculating = true
         defer { isCalculating = false }
 
-        let calculated = cost / gal
-        pricePerGallonString = String(format: "%.3f", calculated)
+        let calculated = totalCost / gallons
+        // Convert to mills (3 decimal places)
+        pricePerGallonMills = Int(round(calculated * 1000))
     }
 
     private func calculateGallons() {
         guard !isCalculating else { return }
-        guard let price = pricePerGallon, price > 0,
-              let cost = totalCost, cost > 0 else { return }
+        guard pricePerGallon > 0, totalCost > 0 else { return }
 
         isCalculating = true
         defer { isCalculating = false }
 
-        let calculated = cost / price
-        gallonsString = String(format: "%.3f", calculated)
+        let calculated = totalCost / pricePerGallon
+        // Convert to mills (3 decimal places)
+        gallonsMills = Int(round(calculated * 1000))
     }
 
     private func saveRecord() {
-        guard let current = currentMiles,
-              let price = pricePerGallon,
-              let gal = gallons,
-              let cost = totalCost else { return }
+        guard let current = currentMiles else { return }
 
         // First record (no previous miles) is always treated as partial since we can't calculate MPG
         let isFirstRecord = previousMiles == 0
@@ -320,9 +318,9 @@ struct AddRecordView: View {
         let record = FuelingRecord(
             date: date,
             currentMiles: current,
-            pricePerGallon: price,
-            gallons: gal,
-            totalCost: cost,
+            pricePerGallon: pricePerGallon,
+            gallons: gallons,
+            totalCost: totalCost,
             fillUpType: effectiveFillUpType,
             notes: notes.isEmpty ? nil : notes
         )
@@ -343,4 +341,3 @@ struct AddRecordView: View {
     AddRecordView(vehicle: Vehicle(name: "Test Car"))
         .modelContainer(for: [Vehicle.self, FuelingRecord.self], inMemory: true)
 }
-
