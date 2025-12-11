@@ -447,7 +447,10 @@ struct ImportCSVView: View {
                 StatisticsCacheService.recalculateAllStatistics(for: vehicle)
 
                 importedCount = records.count
-                showingSuccess = true
+                // Delay showing alert to ensure file picker UI is fully dismissed
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    showingSuccess = true
+                }
             } catch {
                 errorMessage = "Failed to read file: \(error.localizedDescription)"
             }

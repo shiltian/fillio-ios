@@ -57,16 +57,6 @@ struct ContentView: View {
                     onImport: handleCSVImport
                 )
             }
-            .alert("Import Error", isPresented: $showingImportError) {
-                Button("OK", role: .cancel) { }
-            } message: {
-                Text(csvImportError ?? "An unknown error occurred")
-            }
-            .alert("Import Successful", isPresented: $showingImportSuccess) {
-                Button("OK", role: .cancel) { }
-            } message: {
-                Text("\(importedRecordsCount) record(s) imported successfully")
-            }
             .onAppear {
                 navigateToLastVehicleIfNeeded()
                 // Check if there's a pending file to import on appear
@@ -90,6 +80,17 @@ struct ContentView: View {
                 }
             }
         }
+        // Alerts attached to NavigationStack to ensure they show regardless of navigation state
+        .alert("Import Error", isPresented: $showingImportError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(csvImportError ?? "An unknown error occurred")
+        }
+        .alert("Import Successful", isPresented: $showingImportSuccess) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("\(importedRecordsCount) record(s) imported successfully")
+        }
     }
 
     private func handleCSVImport(records: [FuelingRecord], targetVehicle: Vehicle) {
@@ -105,7 +106,10 @@ struct ContentView: View {
             StatisticsCacheService.recalculateAllStatistics(for: targetVehicle)
 
             importedRecordsCount = records.count
-            showingImportSuccess = true
+            // Delay showing alert to ensure sheet is fully dismissed
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                showingImportSuccess = true
+            }
         } catch {
             csvImportError = "Failed to save records: \(error.localizedDescription)"
             showingImportError = true
